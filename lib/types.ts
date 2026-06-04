@@ -1,0 +1,50 @@
+export type LeadPriority = "high" | "medium" | "low";
+
+export type WebsiteStatus =
+  | "none"
+  | "unreachable"
+  | "likely_outdated"
+  | "ok"
+  | "not_checked";
+
+export interface BusinessPlace {
+  placeId: string;
+  businessName: string;
+  category: string;
+  address: string;
+  city: string;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  rating: number | null;
+  reviews: number | null;
+  googleMapsLink: string | null;
+  businessStatus: string | null;
+}
+
+export interface ScoredLead extends BusinessPlace {
+  leadScore: number;
+  priority: LeadPriority;
+  websiteStatus: WebsiteStatus;
+  weakDigitalPresence: boolean;
+}
+
+export interface SearchParams {
+  category: string;
+  city: string;
+  area?: string;
+  country?: string;
+  industry?: string;
+}
+
+export interface ExportLead {
+  business_name: string;
+  category: string;
+  address: string;
+  rating: number | null;
+  reviews: number | null;
+  website: string | null;
+  phone: string | null;
+  email: string | null;
+  lead_score: number;
+}
