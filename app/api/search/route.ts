@@ -1,3 +1,4 @@
+import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { runLeadSearch } from "@/lib/run-search";
@@ -12,6 +13,11 @@ const searchSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const { isAuthenticated } = await auth();
+    if (!isAuthenticated) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const parsed = searchSchema.safeParse(body);
 
