@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { runLeadSearch } from "@/lib/run-search";
+import { checkLimits, recordUsage, capLeadsToRemaining } from "@/lib/usage-limits";
 
 const searchSchema = z.object({
   category: z.string().min(1, "Category is required"),
@@ -13,9 +14,34 @@ const searchSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const { isAuthenticated } = await auth();
-    if (!isAuthenticated) {
+    const { isAuthenticated, userId } = await auth();
+    if (!isAuthenticated || !userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // ── Enforce daily usage limits ──
+    const limits = await checkLimits(userId);
+
+    if (limits.searchesRemaining <= 0) {
+      return NextResponse.json(
+        {
+          error: "Daily search limit reached. Resets at midnight UTC.",
+          limitType: "searches",
+          usage: limits,
+        },
+        { status: 429 }
+      );
+    }
+
+    if (limits.leadsRemaining <= 0) {
+      return NextResponse.json(
+        {
+          error: "Daily lead limit reached. Resets at midnight UTC.",
+          limitType: "leads",
+          usage: limits,
+        },
+        { status: 429 }
+      );
     }
 
     const body = await request.json();
@@ -30,10 +56,18 @@ export async function POST(request: Request) {
 
     const result = await runLeadSearch(parsed.data);
 
+    // Cap leads to remaining daily quota
+    const cappedLeads = capLeadsToRemaining(result.leads, limits.leadsRemaining);
+    const leadCount = cappedLeads.length;
+
+    // Record usage: 1 search + however many leads were returned
+    const updatedUsage = await recordUsage(userId, 1, leadCount);
+
     return NextResponse.json({
       query: result.query,
-      leads: result.leads,
-      meta: { total: result.leads.length },
+      leads: cappedLeads,
+      meta: { total: leadCount, uncappedTotal: result.leads.length },
+      usage: updatedUsage,
     });
   } catch (error) {
     const message =

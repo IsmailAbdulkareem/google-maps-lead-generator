@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createSearchId, saveSearch } from "@/lib/local-storage";
+import { useUsageStats } from "@/components/UsageIndicator";
 import { Search } from "lucide-react";
+import type { UsageStats } from "@/lib/types";
 
 export function SearchForm() {
   const router = useRouter();
@@ -16,6 +18,12 @@ export function SearchForm() {
   const [city, setCity] = useState("");
   const [area, setArea] = useState("");
   const [country, setCountry] = useState("");
+
+  const { stats, loading: usageLoading, refresh: refreshUsage } = useUsageStats();
+
+  const searchesExhausted = stats ? stats.searchesRemaining <= 0 : false;
+  const leadsExhausted = stats ? stats.leadsRemaining <= 0 : false;
+  const limitsReached = searchesExhausted || leadsExhausted;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -38,7 +46,19 @@ export function SearchForm() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Search failed");
+
+      if (!res.ok) {
+        // Handle 429 limit errors specially
+        if (res.status === 429 && data.usage) {
+          setStatsFromResponse(data.usage);
+        }
+        throw new Error(data.error ?? "Search failed");
+      }
+
+      // Update local usage stats from response
+      if (data.usage) {
+        setStatsFromResponse(data.usage);
+      }
 
       const id = createSearchId();
       saveSearch({
@@ -57,10 +77,29 @@ export function SearchForm() {
       router.push(`/leads/${id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Search failed");
+      refreshUsage(); // Refresh limits display after error
     } finally {
       setLoading(false);
     }
   }
+
+  function setStatsFromResponse(usage: UsageStats) {
+    // We can't directly set `stats` from useUsageStats, so we refresh from API
+    // But the response already has the latest data, so we refresh to sync
+    refreshUsage();
+  }
+
+  const limitWarning = stats
+    ? searchesExhausted
+      ? "Daily search limit reached — resets at midnight UTC."
+      : leadsExhausted
+        ? "Daily lead limit reached — resets at midnight UTC."
+        : stats.searchesRemaining <= 2
+          ? `Only ${stats.searchesRemaining} search(es) remaining today.`
+          : stats.leadsRemaining <= 5
+            ? `Only ${stats.leadsRemaining} leads can be viewed this search.`
+            : null
+    : null;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -130,15 +169,60 @@ export function SearchForm() {
         businesses per run).
       </p>
 
+      {/* Usage stats display */}
+      {stats && (
+        <div className="flex items-center gap-3 text-xs">
+          <span
+            className={
+              stats.searchesRemaining === 0
+                ? "text-red-600 dark:text-red-400 font-medium"
+                : stats.searchesRemaining <= 2
+                  ? "text-yellow-600 dark:text-yellow-400"
+                  : "text-foreground/60"
+            }
+          >
+            {stats.searchesRemaining}/{stats.maxSearches} searches remaining
+          </span>
+          <span className="text-foreground/30">·</span>
+          <span
+            className={
+              stats.leadsRemaining === 0
+                ? "text-red-600 dark:text-red-400 font-medium"
+                : stats.leadsRemaining <= 5
+                  ? "text-yellow-600 dark:text-yellow-400"
+                  : "text-foreground/60"
+            }
+          >
+            {stats.leadsRemaining}/{stats.maxLeads} leads remaining
+          </span>
+        </div>
+      )}
+
+      {/* Limit warning */}
+      {limitWarning && (
+        <p className="rounded-lg bg-yellow-500/10 px-3 py-2 text-sm text-yellow-700 dark:text-yellow-400">
+          {limitWarning}
+        </p>
+      )}
+
       {error && (
         <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400">
           {error}
         </p>
       )}
 
-      <Button type="submit" disabled={loading} size="lg" className="gap-2">
+      <Button
+        type="submit"
+        disabled={loading || limitsReached || usageLoading}
+        size="lg"
+        className="gap-2"
+      >
         <Search className="h-4 w-4" />
-        {loading ? "Searching Google Maps…" : "Search Maps"}
+        {loading
+          ? "Searching Google Maps…"
+          : limitsReached
+            ? "Daily limit reached"
+            : "Search Maps"}
       </Button>
     </form>
   );

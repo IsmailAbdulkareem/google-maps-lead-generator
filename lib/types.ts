@@ -48,3 +48,19 @@ export interface ExportLead {
   email: string | null;
   lead_score: number;
 }
+
+export interface UsageData {
+  date: string; // YYYY-MM-DD in UTC
+  searches: number;
+  leads: number;
+}
+
+export interface UsageStats {
+  searchesUsed: number;
+  searchesRemaining: number;
+  leadsUsed: number;
+  leadsRemaining: number;
+  maxSearches: number;
+  maxLeads: number;
+  resetAt: string; // ISO timestamp when counters reset (next midnight UTC)
+}

@@ -1,6 +1,7 @@
 import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 import { MapPin } from "lucide-react";
 import Link from "next/link";
+import { UsageIndicator } from "@/components/UsageIndicator";
 
 export function AppHeader() {
   return (
@@ -15,6 +16,9 @@ export function AppHeader() {
         </Link>
 
         <div className="flex shrink-0 items-center gap-3">
+          <Show when="signed-in">
+            <UsageIndicator />
+          </Show>
           <Show when="signed-out">
             <SignInButton mode="modal">
               <button
