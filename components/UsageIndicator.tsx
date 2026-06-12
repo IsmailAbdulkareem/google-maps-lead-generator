@@ -1,51 +1,76 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import type { UsageStats } from "@/lib/types";
+import type { UsageStats, PlanTier } from "@/lib/types";
+import { isUnlimited } from "@/lib/plans";
+
+interface UsageData extends UsageStats {
+  tier: PlanTier;
+  exportFormats: string[];
+}
+
+async function fetchUsageData(): Promise<UsageData | null> {
+  try {
+    const res = await fetch("/api/usage");
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // Silently ignore — usage display is non-critical
+  }
+  return null;
+}
 
 export function UsageIndicator() {
-  const [stats, setStats] = useState<UsageStats | null>(null);
-
-  const fetchUsage = useCallback(async () => {
-    try {
-      const res = await fetch("/api/usage");
-      if (res.ok) {
-        const data: UsageStats = await res.json();
-        setStats(data);
-      }
-    } catch {
-      // Silently ignore — usage display is non-critical
-    }
-  }, []);
+  const [data, setData] = useState<UsageData | null>(null);
 
   useEffect(() => {
-    fetchUsage();
-  }, [fetchUsage]);
+    let cancelled = false;
+    fetchUsageData().then((result) => {
+      if (!cancelled) setData(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  if (!stats) return null;
+  if (!data) return null;
 
-  const searchColor =
-    stats.searchesRemaining === 0
+  const tierLabel = data.tier === "free" ? "Free" : "Pro";
+  const tierColor = data.tier === "pro"
+    ? "text-blue-600 dark:text-blue-400"
+    : "text-foreground/50";
+
+  const searchColor = isUnlimited(data.maxSearches)
+    ? "text-emerald-600 dark:text-emerald-400"
+    : data.searchesRemaining === 0
       ? "text-red-600 dark:text-red-400"
-      : stats.searchesRemaining <= 2
+      : data.searchesRemaining <= 2
         ? "text-yellow-600 dark:text-yellow-400"
         : "text-emerald-600 dark:text-emerald-400";
 
-  const leadColor =
-    stats.leadsRemaining === 0
+  const leadColor = isUnlimited(data.maxLeads)
+    ? "text-emerald-600 dark:text-emerald-400"
+    : data.leadsRemaining === 0
       ? "text-red-600 dark:text-red-400"
-      : stats.leadsRemaining <= 5
+      : data.leadsRemaining <= 5
         ? "text-yellow-600 dark:text-yellow-400"
         : "text-emerald-600 dark:text-emerald-400";
 
   return (
     <div className="flex items-center gap-3 text-xs">
+      <span className={`font-medium ${tierColor}`}>{tierLabel}</span>
+      <span className="text-foreground/20">|</span>
       <span className={searchColor}>
-        {stats.searchesRemaining}/{stats.maxSearches} searches
+        {isUnlimited(data.maxSearches)
+          ? "∞ searches"
+          : `${data.searchesRemaining}/${data.maxSearches} searches`}
       </span>
       <span className="text-foreground/30">·</span>
       <span className={leadColor}>
-        {stats.leadsRemaining}/{stats.maxLeads} leads
+        {isUnlimited(data.maxLeads)
+          ? "∞ leads"
+          : `${data.leadsRemaining}/${data.maxLeads} leads`}
       </span>
     </div>
   );
@@ -53,27 +78,28 @@ export function UsageIndicator() {
 
 /** Hook to fetch and refresh usage stats — shared between UsageIndicator and SearchForm. */
 export function useUsageStats() {
-  const [stats, setStats] = useState<UsageStats | null>(null);
+  const [stats, setStats] = useState<(UsageStats & { tier: PlanTier; exportFormats: string[] }) | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchUsage = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await fetch("/api/usage");
-      if (res.ok) {
-        const data: UsageStats = await res.json();
-        setStats(data);
-      }
-    } catch {
-      // Silently ignore
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    const result = await fetchUsageData();
+    if (result) setStats(result);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
-    fetchUsage();
-  }, [fetchUsage]);
+    let cancelled = false;
+    fetchUsageData().then((result) => {
+      if (!cancelled) {
+        if (result) setStats(result);
+        setLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return { stats, loading, refresh: fetchUsage };
 }

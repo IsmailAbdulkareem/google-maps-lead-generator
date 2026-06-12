@@ -1,6 +1,7 @@
 import { SearchForm } from "@/components/SearchForm";
 import { SavedSearchesList } from "@/components/SavedSearchesList";
-import { MapPin } from "lucide-react";
+import { MapPin, Search, BarChart3, Download, Shield } from "lucide-react";
+import Link from "next/link";
 
 export default function HomePage() {
   return (
@@ -21,16 +22,65 @@ export default function HomePage() {
         </p>
       </div>
 
+      {/* Feature cards — visible on public homepage */}
+      <div className="mb-10 grid gap-4 sm:grid-cols-2">
+        <div className="flex items-start gap-3 rounded-xl border border-foreground/10 p-4">
+          <Search className="mt-0.5 h-4 w-4 shrink-0 text-foreground/50" />
+          <div>
+            <p className="text-sm font-medium">Google Maps Search</p>
+            <p className="text-xs text-foreground/50">
+              Search any category in any city
+            </p>
+          </div>
+        </div>
+        <div className="flex items-start gap-3 rounded-xl border border-foreground/10 p-4">
+          <BarChart3 className="mt-0.5 h-4 w-4 shrink-0 text-foreground/50" />
+          <div>
+            <p className="text-sm font-medium">Lead Scoring</p>
+            <p className="text-xs text-foreground/50">
+              Auto-scored by online presence
+            </p>
+          </div>
+        </div>
+        <div className="flex items-start gap-3 rounded-xl border border-foreground/10 p-4">
+          <Download className="mt-0.5 h-4 w-4 shrink-0 text-foreground/50" />
+          <div>
+            <p className="text-sm font-medium">Export Anywhere</p>
+            <p className="text-xs text-foreground/50">
+              CSV, PDF, Word, or JSON
+            </p>
+          </div>
+        </div>
+        <div className="flex items-start gap-3 rounded-xl border border-foreground/10 p-4">
+          <Shield className="mt-0.5 h-4 w-4 shrink-0 text-foreground/50" />
+          <div>
+            <p className="text-sm font-medium">Privacy First</p>
+            <p className="text-xs text-foreground/50">
+              All data stays on your device
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="rounded-2xl border border-foreground/10 bg-foreground/[0.02] p-6 sm:p-8">
         <SearchForm />
       </div>
 
       <SavedSearchesList />
 
-      <p className="mt-8 text-center text-xs text-foreground/40">
-        Outreach drafts (email, WhatsApp, audits) —{" "}
-        <span className="text-foreground/60">coming in v2</span>
-      </p>
+      <div className="mt-10 rounded-2xl border border-foreground/10 bg-foreground/[0.02] p-6 text-center">
+        <h2 className="text-lg font-semibold">Ready for more?</h2>
+        <p className="mt-2 text-sm text-foreground/60">
+          Upgrade to Pro for 50 searches/day, 500 leads/day, and premium
+          exports.
+        </p>
+        <Link
+          href="/pricing"
+          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-foreground px-5 py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
+        >
+          View Pricing
+        </Link>
+      </div>
     </main>
   );
 }

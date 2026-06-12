@@ -1,15 +1,6 @@
-import { clerkClient } from "@clerk/nextjs/server";
-// clerkClient is an async function in Clerk v7+ — call it to get the ClerkClient instance
-import { getEnvInt } from "./utils";
-import type { UsageData, UsageStats } from "./types";
-
-/** Read daily limits from env (with sensible defaults). */
-export function getEnvLimits() {
-  return {
-    maxSearches: getEnvInt("MAX_SEARCHES_PER_DAY", 5),
-    maxLeads: getEnvInt("MAX_LEADS_PER_DAY", 20),
-  };
-}
+import { auth, clerkClient } from "@clerk/nextjs/server";
+import { getPlanLimits, isUnlimited } from "./plans";
+import type { UsageData, UsageStats, PlanTier } from "./types";
 
 /** Today's date string in YYYY-MM-DD (UTC). */
 function todayUTC(): string {
@@ -38,8 +29,12 @@ export async function getUserUsage(userId: string): Promise<UsageData> {
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
   const raw = user.privateMetadata?.usage as UsageData | undefined;
+  const today = todayUTC();
 
-  if (!raw || raw.date !== todayUTC()) {
+  console.log("[Usage] stored date:", raw?.date, "| today UTC:", today, "| match:", raw?.date === today);
+
+  if (!raw || raw.date !== today) {
+    console.log("[Usage] Date mismatch — resetting to fresh usage");
     return freshUsage();
   }
 
@@ -47,22 +42,42 @@ export async function getUserUsage(userId: string): Promise<UsageData> {
 }
 
 /**
- * Check whether the user is allowed to perform a search.
- * Returns full stats including remaining counts.
+ * Get the user's plan tier using Clerk's has() method from auth().
+ * This checks the actual Clerk Billing subscription status.
  */
-export async function checkLimits(userId: string): Promise<UsageStats> {
-  const { maxSearches, maxLeads } = getEnvLimits();
-  const usage = await getUserUsage(userId);
+export async function getUserTier(): Promise<PlanTier> {
+  const { has } = await auth();
+  if (has({ plan: "pro_plan" })) return "pro";
+  return "free";
+}
 
-  // Auto-reset if day changed (getUserUsage already handles this)
+/**
+ * Check whether the user is allowed to perform a search.
+ * Returns full stats including remaining counts and plan info.
+ */
+export async function checkLimits(): Promise<UsageStats & { tier: PlanTier; exportFormats: string[] }> {
+  const { userId } = await auth();
+  const tier = await getUserTier();
+  const { maxSearches, maxLeads, exportFormats } = getPlanLimits(tier);
+  const usage = userId ? await getUserUsage(userId) : freshUsage();
+
   const searchesUsed = usage.searches;
   const leadsUsed = usage.leads;
 
+  const searchesRemaining = isUnlimited(maxSearches)
+    ? -1
+    : Math.max(0, maxSearches - searchesUsed);
+  const leadsRemaining = isUnlimited(maxLeads)
+    ? -1
+    : Math.max(0, maxLeads - leadsUsed);
+
   return {
+    tier,
+    exportFormats,
     searchesUsed,
-    searchesRemaining: Math.max(0, maxSearches - searchesUsed),
+    searchesRemaining,
     leadsUsed,
-    leadsRemaining: Math.max(0, maxLeads - leadsUsed),
+    leadsRemaining,
     maxSearches,
     maxLeads,
     resetAt: nextMidnightUTC(),
@@ -72,15 +87,15 @@ export async function checkLimits(userId: string): Promise<UsageStats> {
 /**
  * Record usage after a successful search.
  * Updates Clerk privateMetadata with incremented counters.
- * Returns the updated UsageStats.
  */
 export async function recordUsage(
   userId: string,
   searchIncrement: number,
   leadIncrement: number
-): Promise<UsageStats> {
+): Promise<UsageStats & { tier: PlanTier; exportFormats: string[] }> {
   const usage = await getUserUsage(userId);
-  const { maxSearches, maxLeads } = getEnvLimits();
+  const tier = await getUserTier();
+  const { maxSearches, maxLeads, exportFormats } = getPlanLimits(tier);
 
   const updated: UsageData = {
     date: todayUTC(),
@@ -93,11 +108,20 @@ export async function recordUsage(
     privateMetadata: { usage: updated },
   });
 
+  const searchesRemaining = isUnlimited(maxSearches)
+    ? -1
+    : Math.max(0, maxSearches - updated.searches);
+  const leadsRemaining = isUnlimited(maxLeads)
+    ? -1
+    : Math.max(0, maxLeads - updated.leads);
+
   return {
+    tier,
+    exportFormats,
     searchesUsed: updated.searches,
-    searchesRemaining: Math.max(0, maxSearches - updated.searches),
+    searchesRemaining,
     leadsUsed: updated.leads,
-    leadsRemaining: Math.max(0, maxLeads - updated.leads),
+    leadsRemaining,
     maxSearches,
     maxLeads,
     resetAt: nextMidnightUTC(),
@@ -106,13 +130,12 @@ export async function recordUsage(
 
 /**
  * Cap a leads array to the user's remaining daily lead quota.
- * If the user has 5 leads remaining and the search returns 20,
- * only the top 5 (highest-scored) leads are returned.
  */
 export function capLeadsToRemaining<T>(
   leads: T[],
   leadsRemaining: number
 ): T[] {
+  if (leadsRemaining === -1) return leads;
   if (leads.length <= leadsRemaining) return leads;
   return leads.slice(0, leadsRemaining);
 }

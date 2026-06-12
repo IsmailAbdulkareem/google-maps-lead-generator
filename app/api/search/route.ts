@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { runLeadSearch } from "@/lib/run-search";
 import { checkLimits, recordUsage, capLeadsToRemaining } from "@/lib/usage-limits";
+import { isUnlimited } from "@/lib/plans";
 
 const searchSchema = z.object({
   category: z.string().min(1, "Category is required"),
@@ -20,12 +21,12 @@ export async function POST(request: Request) {
     }
 
     // ── Enforce daily usage limits ──
-    const limits = await checkLimits(userId);
+    const limits = await checkLimits();
 
-    if (limits.searchesRemaining <= 0) {
+    if (!isUnlimited(limits.maxSearches) && limits.searchesRemaining <= 0) {
       return NextResponse.json(
         {
-          error: "Daily search limit reached. Resets at midnight UTC.",
+          error: "Daily search limit reached. Upgrade to Pro to continue.",
           limitType: "searches",
           usage: limits,
         },
@@ -33,10 +34,10 @@ export async function POST(request: Request) {
       );
     }
 
-    if (limits.leadsRemaining <= 0) {
+    if (!isUnlimited(limits.maxLeads) && limits.leadsRemaining <= 0) {
       return NextResponse.json(
         {
-          error: "Daily lead limit reached. Resets at midnight UTC.",
+          error: "Daily lead limit reached. Upgrade to Pro to continue.",
           limitType: "leads",
           usage: limits,
         },

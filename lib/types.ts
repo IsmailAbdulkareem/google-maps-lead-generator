@@ -1,3 +1,17 @@
+export type PlanTier = "free" | "pro";
+
+export interface SubscriptionData {
+  tier: PlanTier;
+  currentPeriodEnd?: string;
+}
+
+export interface PlanLimits {
+  tier: PlanTier;
+  maxSearches: number;
+  maxLeads: number;
+  exportFormats: string[];
+}
+
 export type LeadPriority = "high" | "medium" | "low";
 
 export type WebsiteStatus =
