@@ -46,12 +46,11 @@ export function PricingCard({
         ))}
       </ul>
 
-      <a
-        href="mailto:hello@leadgenerator.app?subject=Pro%20Waitlist"
-        className="mt-8 inline-flex w-full items-center justify-center rounded-lg bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
+      <span
+        className="mt-8 inline-flex w-full items-center justify-center rounded-lg bg-foreground/10 px-4 py-2.5 text-sm font-medium text-foreground/50"
       >
         {isFree ? "Get Started" : "Notify Me"}
-      </a>
+      </span>
     </div>
   );
 }

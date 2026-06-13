@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 interface UpgradeModalProps {
   open: boolean;
   onClose: () => void;
+  onNotify: () => void;
 }
 
-export function UpgradeModal({ open, onClose }: UpgradeModalProps) {
+export function UpgradeModal({ open, onClose, onNotify }: UpgradeModalProps) {
   if (!open) return null;
 
   return (
@@ -37,13 +38,14 @@ export function UpgradeModal({ open, onClose }: UpgradeModalProps) {
           >
             Maybe Later
           </Button>
-          <a
-            href="mailto:hello@leadgenerator.app?subject=Pro%20Waitlist"
-            className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
+          <Button
+            type="button"
+            className="flex-1 gap-2"
+            onClick={onNotify}
           >
             <Mail className="h-4 w-4" />
             Notify Me
-          </a>
+          </Button>
         </div>
         <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-foreground/50">
           <Clock className="h-3 w-3" />

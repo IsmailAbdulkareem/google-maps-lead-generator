@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { createSearchId, saveSearch } from "@/lib/local-storage";
 import { useUsageStats } from "@/components/UsageIndicator";
 import { UpgradeModal } from "@/components/UpgradeModal";
+import { WaitlistModal } from "@/components/WaitlistModal";
 import { isUnlimited } from "@/lib/plans";
 import { Search } from "lucide-react";
 
@@ -21,6 +22,7 @@ export function SearchForm() {
   const [area, setArea] = useState("");
   const [country, setCountry] = useState("");
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [showWaitlist, setShowWaitlist] = useState(false);
 
   const { stats, loading: usageLoading, refresh: refreshUsage } = useUsageStats();
 
@@ -242,6 +244,12 @@ export function SearchForm() {
       <UpgradeModal
         open={showUpgrade}
         onClose={() => setShowUpgrade(false)}
+        onNotify={() => { setShowUpgrade(false); setShowWaitlist(true); }}
+      />
+
+      <WaitlistModal
+        open={showWaitlist}
+        onClose={() => setShowWaitlist(false)}
       />
     </>
   );

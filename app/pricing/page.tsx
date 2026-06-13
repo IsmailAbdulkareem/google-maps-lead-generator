@@ -1,8 +1,14 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { Check, Clock, Mail } from "lucide-react";
 import { PLANS } from "@/lib/plans";
+import { WaitlistModal } from "@/components/WaitlistModal";
+import { Button } from "@/components/ui/button";
 
 export default function PricingPage() {
+  const [showWaitlist, setShowWaitlist] = useState(false);
   const free = PLANS.free;
   const pro = PLANS.pro;
 
@@ -22,7 +28,7 @@ export default function PricingPage() {
         <div className="rounded-2xl border border-foreground/10 bg-foreground/[0.02] p-6">
           <h2 className="text-lg font-semibold">{free.name}</h2>
           <p className="mt-1 text-sm text-foreground/60">
-            {free.searchesPerDay} searches/day &middot; {free.leadsPerDay} leads/day
+            {free.searchesPerDay} searches &middot; {free.leadsPerDay} leads (one-time trial)
           </p>
           <div className="mt-4 text-2xl font-bold">$0</div>
           <p className="text-xs text-foreground/50">Free forever</p>
@@ -62,13 +68,14 @@ export default function PricingPage() {
             ))}
           </ul>
           <div className="mt-6 flex flex-col gap-3">
-            <a
-              href="mailto:hello@leadgenerator.app?subject=Pro%20Waitlist"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
+            <Button
+              type="button"
+              className="w-full gap-2"
+              onClick={() => setShowWaitlist(true)}
             >
               <Mail className="h-4 w-4" />
               Notify Me
-            </a>
+            </Button>
             <div className="flex items-center justify-center gap-1.5 text-xs text-foreground/50">
               <Clock className="h-3 w-3" />
               Launching soon — join the waitlist
@@ -76,6 +83,11 @@ export default function PricingPage() {
           </div>
         </div>
       </div>
+
+      <WaitlistModal
+        open={showWaitlist}
+        onClose={() => setShowWaitlist(false)}
+      />
     </main>
   );
 }
