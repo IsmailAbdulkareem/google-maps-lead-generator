@@ -20,7 +20,7 @@ export function AppHeader() {
             href="/pricing"
             className="hidden text-sm text-foreground/60 transition-colors hover:text-foreground sm:block"
           >
-            Pricing
+            Coming Soon
           </Link>
           <Link
             href="/about"

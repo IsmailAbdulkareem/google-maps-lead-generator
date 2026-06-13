@@ -42,12 +42,11 @@ export async function getUserUsage(userId: string): Promise<UsageData> {
 }
 
 /**
- * Get the user's plan tier using Clerk's has() method from auth().
- * This checks the actual Clerk Billing subscription status.
+ * Get the user's plan tier.
+ * Pro subscriptions are not yet available — always returns "free"
+ * so no one can bypass limits via Clerk billing.
  */
 export async function getUserTier(): Promise<PlanTier> {
-  const { has } = await auth();
-  if (has({ plan: "pro_plan" })) return "pro";
   return "free";
 }
 

@@ -10,6 +10,7 @@ import { UpgradeModal } from "@/components/UpgradeModal";
 import { isUnlimited } from "@/lib/plans";
 import { Search } from "lucide-react";
 
+
 export function SearchForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -90,9 +91,9 @@ export function SearchForm() {
 
   const limitWarning = stats
     ? searchesExhausted
-      ? "Daily search limit reached — upgrade to Pro to continue."
+      ? "Daily search limit reached — Pro is coming soon."
       : leadsExhausted
-        ? "Daily lead limit reached — upgrade to Pro to continue."
+        ? "Daily lead limit reached — Pro is coming soon."
         : !isUnlimited(stats.maxSearches) && stats.searchesRemaining <= 2
           ? `Only ${stats.searchesRemaining} search(es) remaining today.`
           : !isUnlimited(stats.maxLeads) && stats.leadsRemaining <= 5
@@ -241,7 +242,6 @@ export function SearchForm() {
       <UpgradeModal
         open={showUpgrade}
         onClose={() => setShowUpgrade(false)}
-        onUpgrade={() => router.push("/pricing")}
       />
     </>
   );

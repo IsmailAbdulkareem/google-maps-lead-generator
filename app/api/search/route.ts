@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     if (!isUnlimited(limits.maxSearches) && limits.searchesRemaining <= 0) {
       return NextResponse.json(
         {
-          error: "Daily search limit reached. Upgrade to Pro to continue.",
+          error: "Daily search limit reached. Pro is coming soon.",
           limitType: "searches",
           usage: limits,
         },
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     if (!isUnlimited(limits.maxLeads) && limits.leadsRemaining <= 0) {
       return NextResponse.json(
         {
-          error: "Daily lead limit reached. Upgrade to Pro to continue.",
+          error: "Daily lead limit reached. Pro is coming soon.",
           limitType: "leads",
           usage: limits,
         },

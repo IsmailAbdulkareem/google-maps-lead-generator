@@ -1,20 +1,17 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import type { PlanDefinition } from "@/lib/plans";
 
 interface PricingCardProps {
   plan: PlanDefinition;
   isCurrent?: boolean;
-  onSelect: (tier: string) => void;
   highlighted?: boolean;
 }
 
 export function PricingCard({
   plan,
   isCurrent,
-  onSelect,
   highlighted,
 }: PricingCardProps) {
   const isFree = plan.price === 0;
@@ -29,7 +26,7 @@ export function PricingCard({
     >
       {highlighted && (
         <span className="mb-3 inline-block self-start rounded-full bg-foreground/10 px-3 py-0.5 text-xs font-medium text-foreground/70">
-          Most Popular
+          Coming Soon
         </span>
       )}
       <h3 className="text-lg font-semibold">{plan.name}</h3>
@@ -49,16 +46,12 @@ export function PricingCard({
         ))}
       </ul>
 
-      <Button
-        type="button"
-        variant={isCurrent ? "outline" : "default"}
-        size="lg"
-        className="mt-8 w-full"
-        disabled={isCurrent}
-        onClick={() => onSelect(plan.tier)}
+      <a
+        href="mailto:hello@leadgenerator.app?subject=Pro%20Waitlist"
+        className="mt-8 inline-flex w-full items-center justify-center rounded-lg bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
       >
-        {isCurrent ? "Current Plan" : isFree ? "Get Started" : "Upgrade to Pro"}
-      </Button>
+        {isFree ? "Get Started" : "Notify Me"}
+      </a>
     </div>
   );
 }
