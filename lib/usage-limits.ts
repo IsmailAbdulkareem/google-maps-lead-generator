@@ -2,43 +2,25 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getPlanLimits, isUnlimited } from "./plans";
 import type { UsageData, UsageStats, PlanTier } from "./types";
 
-/** Today's date string in YYYY-MM-DD (UTC). */
-function todayUTC(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-/** ISO timestamp for next midnight UTC (when counters reset). */
-function nextMidnightUTC(): string {
-  const now = new Date();
-  const tomorrow = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)
-  );
-  return tomorrow.toISOString();
-}
-
-/** Default usage data for a fresh day. */
+/** Default usage data for a new user. */
 function freshUsage(): UsageData {
-  return { date: todayUTC(), searches: 0, leads: 0 };
+  return { searches: 0, leads: 0 };
 }
 
 /**
  * Read the user's current usage from Clerk privateMetadata.
- * Returns fresh defaults if no data exists or if the day has changed.
+ * Usage is cumulative and never resets — free trial is one-time only.
  */
 export async function getUserUsage(userId: string): Promise<UsageData> {
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
   const raw = user.privateMetadata?.usage as UsageData | undefined;
-  const today = todayUTC();
 
-  console.log("[Usage] stored date:", raw?.date, "| today UTC:", today, "| match:", raw?.date === today);
-
-  if (!raw || raw.date !== today) {
-    console.log("[Usage] Date mismatch — resetting to fresh usage");
+  if (!raw) {
     return freshUsage();
   }
 
-  return raw;
+  return { searches: raw.searches ?? 0, leads: raw.leads ?? 0 };
 }
 
 /**
@@ -79,13 +61,13 @@ export async function checkLimits(): Promise<UsageStats & { tier: PlanTier; expo
     leadsRemaining,
     maxSearches,
     maxLeads,
-    resetAt: nextMidnightUTC(),
   };
 }
 
 /**
  * Record usage after a successful search.
  * Updates Clerk privateMetadata with incremented counters.
+ * Usage is cumulative — never resets.
  */
 export async function recordUsage(
   userId: string,
@@ -97,7 +79,6 @@ export async function recordUsage(
   const { maxSearches, maxLeads, exportFormats } = getPlanLimits(tier);
 
   const updated: UsageData = {
-    date: todayUTC(),
     searches: usage.searches + searchIncrement,
     leads: usage.leads + leadIncrement,
   };
@@ -123,12 +104,11 @@ export async function recordUsage(
     leadsRemaining,
     maxSearches,
     maxLeads,
-    resetAt: nextMidnightUTC(),
   };
 }
 
 /**
- * Cap a leads array to the user's remaining daily lead quota.
+ * Cap a leads array to the user's remaining lead quota.
  */
 export function capLeadsToRemaining<T>(
   leads: T[],

@@ -64,7 +64,6 @@ export interface ExportLead {
 }
 
 export interface UsageData {
-  date: string; // YYYY-MM-DD in UTC
   searches: number;
   leads: number;
 }
@@ -76,5 +75,4 @@ export interface UsageStats {
   leadsRemaining: number;
   maxSearches: number;
   maxLeads: number;
-  resetAt: string; // ISO timestamp when counters reset (next midnight UTC)
 }

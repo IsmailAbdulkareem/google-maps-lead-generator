@@ -28,9 +28,6 @@ export function UpgradeModal({ open, onClose }: UpgradeModalProps) {
           You&apos;ve used all free credits available on the Free plan.
           Pro subscriptions are coming soon.
         </p>
-        <p className="mt-2 text-xs text-foreground/50">
-          Your limits reset daily at midnight UTC.
-        </p>
         <div className="mt-6 flex gap-3">
           <Button
             type="button"
