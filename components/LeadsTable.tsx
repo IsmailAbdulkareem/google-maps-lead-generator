@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { PriorityBadge } from "@/components/PriorityBadge";
+import { OutreachModal } from "@/components/OutreachModal";
 import { Button } from "@/components/ui/button";
+import { useUsageStats } from "@/components/UsageIndicator";
 import { formatWebsiteDisplay } from "@/lib/website-analyzer";
 import type { LeadFilter } from "@/lib/lead-filters";
 import { filterLeads } from "@/lib/lead-filters";
@@ -13,7 +15,7 @@ import {
   downloadPdf,
 } from "@/lib/export-downloads";
 import type { LeadPriority, ScoredLead, WebsiteStatus } from "@/lib/types";
-import { Download, ExternalLink, FileText } from "lucide-react";
+import { Download, ExternalLink, FileText, Sparkles } from "lucide-react";
 
 export function LeadsTable({
   leads: allLeads,
@@ -26,6 +28,8 @@ export function LeadsTable({
 }) {
   const [filter, setFilter] = useState<LeadFilter>("all");
   const [exporting, setExporting] = useState<string | null>(null);
+  const [outreachLead, setOutreachLead] = useState<ScoredLead | null>(null);
+  const { stats } = useUsageStats();
 
   const leads = useMemo(
     () => filterLeads(allLeads, filter),
@@ -142,6 +146,7 @@ export function LeadsTable({
                     <th className="px-4 py-3 font-medium">Email</th>
                     <th className="px-4 py-3 font-medium">Priority</th>
                     <th className="px-4 py-3 font-medium">Score</th>
+                    <th className="px-4 py-3 font-medium">AI</th>
                   </>
                 )}
               </tr>
@@ -223,6 +228,18 @@ export function LeadsTable({
                       <td className="px-4 py-3 font-semibold tabular-nums">
                         {lead.leadScore}
                       </td>
+                      <td className="px-4 py-3">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="gap-1"
+                          onClick={() => setOutreachLead(lead)}
+                        >
+                          <Sparkles className="h-3.5 w-3.5" />
+                          Outreach
+                        </Button>
+                      </td>
                     </>
                   )}
                 </tr>
@@ -230,6 +247,15 @@ export function LeadsTable({
             </tbody>
           </table>
         </div>
+      )}
+
+      {outreachLead && (
+        <OutreachModal
+          lead={outreachLead}
+          open={!!outreachLead}
+          onClose={() => setOutreachLead(null)}
+          tier={stats?.tier ?? "free"}
+        />
       )}
     </div>
   );

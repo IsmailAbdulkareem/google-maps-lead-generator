@@ -33,15 +33,15 @@ export function LeadsPageClient({ searchId }: { searchId: string }) {
     return (
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
         <Link
-          href="/"
+          href="/search"
           className="mb-6 inline-flex items-center gap-1 text-sm text-foreground/60 hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
           New search
         </Link>
         <p className="text-foreground/70">
-          No saved results found on this device. Run a new search from the home
-          page (results are stored in your browser only).
+          No saved results found on this device. Run a new search from the
+          manual search page (results are stored in your browser only).
         </p>
       </main>
     );
@@ -57,7 +57,7 @@ export function LeadsPageClient({ searchId }: { searchId: string }) {
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <Link
-          href="/"
+          href="/search"
           className="inline-flex items-center gap-1 text-sm text-foreground/60 hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />

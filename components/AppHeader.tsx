@@ -3,6 +3,9 @@ import { MapPin } from "lucide-react";
 import Link from "next/link";
 import { UsageIndicator } from "@/components/UsageIndicator";
 
+const navLinkClass =
+  "text-sm text-foreground/60 transition-colors hover:text-foreground";
+
 export function AppHeader() {
   return (
     <header className="border-b border-foreground/10 bg-background/80 backdrop-blur-sm">
@@ -15,19 +18,24 @@ export function AppHeader() {
           <span className="truncate">Lead Generator</span>
         </Link>
 
-        <div className="flex shrink-0 items-center gap-3">
-          <Link
-            href="/pricing"
-            className="hidden text-sm text-foreground/60 transition-colors hover:text-foreground sm:block"
-          >
-            Coming Soon
+        <nav className="hidden items-center gap-4 sm:flex">
+          <Show when="signed-in">
+            <Link href="/search" className={navLinkClass}>
+              Manual Search
+            </Link>
+            <Link href="/chat" className={navLinkClass}>
+              AI Assistant
+            </Link>
+          </Show>
+          <Link href="/pricing" className={navLinkClass}>
+            Pricing
           </Link>
-          <Link
-            href="/about"
-            className="hidden text-sm text-foreground/60 transition-colors hover:text-foreground sm:block"
-          >
+          <Link href="/about" className={navLinkClass}>
             About
           </Link>
+        </nav>
+
+        <div className="flex shrink-0 items-center gap-3">
           <a
             href="https://github.com/IsmailAbdulkareem"
             target="_blank"

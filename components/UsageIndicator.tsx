@@ -3,15 +3,19 @@
 import { useEffect, useState, useCallback } from "react";
 import type { UsageStats, PlanTier } from "@/lib/types";
 import { isUnlimited } from "@/lib/plans";
+import { USAGE_UPDATED_EVENT } from "@/lib/usage-events";
 
 interface UsageData extends UsageStats {
   tier: PlanTier;
   exportFormats: string[];
+  aiMessagesUsed?: number;
+  aiMessagesRemaining?: number;
+  maxAiMessages?: number;
 }
 
 async function fetchUsageData(): Promise<UsageData | null> {
   try {
-    const res = await fetch("/api/usage");
+    const res = await fetch("/api/usage", { cache: "no-store" });
     if (res.ok) {
       return await res.json();
     }
@@ -21,18 +25,32 @@ async function fetchUsageData(): Promise<UsageData | null> {
   return null;
 }
 
+function useUsageRefetch(onRefetch: () => void) {
+  useEffect(() => {
+    const handler = () => onRefetch();
+    window.addEventListener(USAGE_UPDATED_EVENT, handler);
+    window.addEventListener("focus", handler);
+    return () => {
+      window.removeEventListener(USAGE_UPDATED_EVENT, handler);
+      window.removeEventListener("focus", handler);
+    };
+  }, [onRefetch]);
+}
+
 export function UsageIndicator() {
   const [data, setData] = useState<UsageData | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const refetch = useCallback(() => {
     fetchUsageData().then((result) => {
-      if (!cancelled) setData(result);
+      if (result) setData(result);
     });
-    return () => {
-      cancelled = true;
-    };
   }, []);
+
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+
+  useUsageRefetch(refetch);
 
   if (!data) return null;
 
@@ -89,17 +107,10 @@ export function useUsageStats() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    fetchUsageData().then((result) => {
-      if (!cancelled) {
-        if (result) setStats(result);
-        setLoading(false);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    fetchUsage();
+  }, [fetchUsage]);
+
+  useUsageRefetch(fetchUsage);
 
   return { stats, loading, refresh: fetchUsage };
 }

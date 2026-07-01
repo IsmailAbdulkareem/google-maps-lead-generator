@@ -9,6 +9,7 @@ import { useUsageStats } from "@/components/UsageIndicator";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { WaitlistModal } from "@/components/WaitlistModal";
 import { isUnlimited } from "@/lib/plans";
+import { notifyUsageUpdated } from "@/lib/usage-events";
 import { Search } from "lucide-react";
 
 
@@ -59,12 +60,14 @@ export function SearchForm() {
       if (!res.ok) {
         if (res.status === 429 && data.usage) {
           refreshUsage();
+          notifyUsageUpdated();
           setShowUpgrade(true);
         }
         throw new Error(data.error ?? "Search failed");
       }
 
       refreshUsage();
+      notifyUsageUpdated();
 
       const id = createSearchId();
       saveSearch({
@@ -84,6 +87,7 @@ export function SearchForm() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Search failed");
       refreshUsage();
+      notifyUsageUpdated();
     } finally {
       setLoading(false);
     }

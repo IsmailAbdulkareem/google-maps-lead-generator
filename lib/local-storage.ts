@@ -92,3 +92,14 @@ export function listSavedSearches(): SavedSearchMeta[] {
 export function createSearchId(): string {
   return crypto.randomUUID();
 }
+
+export function updateSearchLeads(id: string, leads: ScoredLead[]): boolean {
+  const search = getSearch(id);
+  if (!search) return false;
+  saveSearch({
+    ...search,
+    leads,
+    leadCount: leads.length,
+  });
+  return true;
+}

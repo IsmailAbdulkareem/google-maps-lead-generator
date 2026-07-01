@@ -66,6 +66,60 @@ export interface ExportLead {
 export interface UsageData {
   searches: number;
   leads: number;
+  aiMessages?: number;
+}
+
+export interface ChatMessage {
+  role: "user" | "assistant" | "system";
+  content: string;
+}
+
+export interface OutreachRequest {
+  lead: ScoredLead;
+  userService: string;
+  channel: "email" | "sms" | "linkedin";
+  tone?: "professional" | "friendly" | "direct";
+  language?: string;
+  includeSubject?: boolean;
+}
+
+export interface OutreachResult {
+  subject?: string;
+  body: string;
+  personalizationHooks: string[];
+}
+
+export interface ScoreExplanation {
+  score: number;
+  breakdown: { criterion: string; points: number }[];
+  rationale: string;
+  pitchAngle: string;
+}
+
+export type JobStatus = "pending" | "running" | "completed" | "failed";
+
+export interface BulkSearchJob {
+  id: string;
+  userId: string;
+  status: JobStatus;
+  params: SearchParams;
+  targetCount: number;
+  minScore: number;
+  maxScore: number;
+  leads: ScoredLead[];
+  searchesRun: number;
+  error?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ServerSavedSearch {
+  id: string;
+  userId: string;
+  query: string;
+  params: SearchParams;
+  leads: ScoredLead[];
+  createdAt: string;
 }
 
 export interface UsageStats {

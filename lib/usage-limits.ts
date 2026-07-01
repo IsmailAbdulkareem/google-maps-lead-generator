@@ -1,10 +1,10 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
-import { getPlanLimits, isUnlimited } from "./plans";
+import { getPlanLimits, getUserPlan, isUnlimited } from "./plans";
 import type { UsageData, UsageStats, PlanTier } from "./types";
 
 /** Default usage data for a new user. */
 function freshUsage(): UsageData {
-  return { searches: 0, leads: 0 };
+  return { searches: 0, leads: 0, aiMessages: 0 };
 }
 
 /**
@@ -20,30 +20,47 @@ export async function getUserUsage(userId: string): Promise<UsageData> {
     return freshUsage();
   }
 
-  return { searches: raw.searches ?? 0, leads: raw.leads ?? 0 };
+  return {
+    searches: raw.searches ?? 0,
+    leads: raw.leads ?? 0,
+    aiMessages: raw.aiMessages ?? 0,
+  };
 }
 
 /**
- * Get the user's plan tier.
- * Pro subscriptions are not yet available — always returns "free"
- * so no one can bypass limits via Clerk billing.
+ * Get the user's plan tier from Clerk publicMetadata.
  */
 export async function getUserTier(): Promise<PlanTier> {
-  return "free";
+  const { userId } = await auth();
+  if (!userId) return "free";
+  const client = await clerkClient();
+  const user = await client.users.getUser(userId);
+  return getUserPlan(user);
+}
+
+export interface FullUsageStats extends UsageStats {
+  tier: PlanTier;
+  exportFormats: string[];
+  aiFeatures: string[];
+  aiMessagesUsed: number;
+  aiMessagesRemaining: number;
+  maxAiMessages: number;
 }
 
 /**
  * Check whether the user is allowed to perform a search.
  * Returns full stats including remaining counts and plan info.
  */
-export async function checkLimits(): Promise<UsageStats & { tier: PlanTier; exportFormats: string[] }> {
+export async function checkLimits(): Promise<FullUsageStats> {
   const { userId } = await auth();
   const tier = await getUserTier();
-  const { maxSearches, maxLeads, exportFormats } = getPlanLimits(tier);
+  const { maxSearches, maxLeads, maxAiMessages, exportFormats, aiFeatures } =
+    getPlanLimits(tier);
   const usage = userId ? await getUserUsage(userId) : freshUsage();
 
   const searchesUsed = usage.searches;
   const leadsUsed = usage.leads;
+  const aiMessagesUsed = usage.aiMessages ?? 0;
 
   const searchesRemaining = isUnlimited(maxSearches)
     ? -1
@@ -51,36 +68,44 @@ export async function checkLimits(): Promise<UsageStats & { tier: PlanTier; expo
   const leadsRemaining = isUnlimited(maxLeads)
     ? -1
     : Math.max(0, maxLeads - leadsUsed);
+  const aiMessagesRemaining = isUnlimited(maxAiMessages)
+    ? -1
+    : Math.max(0, maxAiMessages - aiMessagesUsed);
 
   return {
     tier,
     exportFormats,
+    aiFeatures,
     searchesUsed,
     searchesRemaining,
     leadsUsed,
     leadsRemaining,
     maxSearches,
     maxLeads,
+    aiMessagesUsed,
+    aiMessagesRemaining,
+    maxAiMessages,
   };
 }
 
 /**
  * Record usage after a successful search.
  * Updates Clerk privateMetadata with incremented counters.
- * Usage is cumulative — never resets.
  */
 export async function recordUsage(
   userId: string,
   searchIncrement: number,
   leadIncrement: number
-): Promise<UsageStats & { tier: PlanTier; exportFormats: string[] }> {
+): Promise<FullUsageStats> {
   const usage = await getUserUsage(userId);
   const tier = await getUserTier();
-  const { maxSearches, maxLeads, exportFormats } = getPlanLimits(tier);
+  const { maxSearches, maxLeads, maxAiMessages, exportFormats, aiFeatures } =
+    getPlanLimits(tier);
 
   const updated: UsageData = {
     searches: usage.searches + searchIncrement,
     leads: usage.leads + leadIncrement,
+    aiMessages: usage.aiMessages ?? 0,
   };
 
   const client = await clerkClient();
@@ -94,16 +119,69 @@ export async function recordUsage(
   const leadsRemaining = isUnlimited(maxLeads)
     ? -1
     : Math.max(0, maxLeads - updated.leads);
+  const aiMessagesRemaining = isUnlimited(maxAiMessages)
+    ? -1
+    : Math.max(0, maxAiMessages - (updated.aiMessages ?? 0));
 
   return {
     tier,
     exportFormats,
+    aiFeatures,
     searchesUsed: updated.searches,
     searchesRemaining,
     leadsUsed: updated.leads,
     leadsRemaining,
     maxSearches,
     maxLeads,
+    aiMessagesUsed: updated.aiMessages ?? 0,
+    aiMessagesRemaining,
+    maxAiMessages,
+  };
+}
+
+/**
+ * Record AI message usage after a chat turn.
+ */
+export async function recordAiMessage(userId: string): Promise<FullUsageStats> {
+  const usage = await getUserUsage(userId);
+  const tier = await getUserTier();
+  const { maxSearches, maxLeads, maxAiMessages, exportFormats, aiFeatures } =
+    getPlanLimits(tier);
+
+  const updated: UsageData = {
+    searches: usage.searches,
+    leads: usage.leads,
+    aiMessages: (usage.aiMessages ?? 0) + 1,
+  };
+
+  const client = await clerkClient();
+  await client.users.updateUserMetadata(userId, {
+    privateMetadata: { usage: updated },
+  });
+
+  const searchesRemaining = isUnlimited(maxSearches)
+    ? -1
+    : Math.max(0, maxSearches - updated.searches);
+  const leadsRemaining = isUnlimited(maxLeads)
+    ? -1
+    : Math.max(0, maxLeads - updated.leads);
+  const aiMessagesRemaining = isUnlimited(maxAiMessages)
+    ? -1
+    : Math.max(0, maxAiMessages - (updated.aiMessages ?? 0));
+
+  return {
+    tier,
+    exportFormats,
+    aiFeatures,
+    searchesUsed: updated.searches,
+    searchesRemaining,
+    leadsUsed: updated.leads,
+    leadsRemaining,
+    maxSearches,
+    maxLeads,
+    aiMessagesUsed: updated.aiMessages ?? 0,
+    aiMessagesRemaining,
+    maxAiMessages,
   };
 }
 
