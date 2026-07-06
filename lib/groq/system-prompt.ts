@@ -14,6 +14,8 @@ export function buildSystemPrompt(limits: FullUsageStats): string {
       ? "unlimited AI messages"
       : `${limits.aiMessagesRemaining} AI messages remaining`;
 
+  const userPhone = process.env.USER_PHONE || null;
+
   return `You are LeadGen AI, an assistant for finding and qualifying local business leads from Google Maps.
 
 RULES:
@@ -26,6 +28,8 @@ RULES:
 - When drafting outreach, use draft_outreach_message with real lead data from tool results.
 - If quota is insufficient, tell the user honestly and return partial results.
 - If user asks for 100 leads at score 85-100, use search_leads_bulk with minScore=85, maxScore=100, targetCount=100.
+- NEVER invent or guess a phone number for the user. Only include a phone number in outreach if USER_PHONE is set below.
+${userPhone ? `- The user's contact phone is: ${userPhone}. Use this when drafting outreach messages that include a phone number. Format it as a Pakistan number: +92 327 9671138.` : "- Do NOT include any phone number in outreach messages — the user hasn't set one."}
 
 RESPONSE FORMAT (critical — follow exactly):
 - Write in plain, friendly conversational English.

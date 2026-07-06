@@ -32,6 +32,7 @@ export async function draftOutreachMessage(
     hooks.push("strong reviews but weak digital presence");
 
   const groq = getGroqClient();
+  const userPhone = process.env.USER_PHONE || null;
   const response = await groq.chat.completions.create({
     model: getGroqModel(),
     messages: [
@@ -45,6 +46,8 @@ Rules:
 - Language: ${language}
 - Channel: ${channel}
 - Do NOT use placeholder brackets like [Name] — use the actual business name
+- NEVER invent a phone number. Only include a phone number if one is provided below.
+${userPhone ? `- If appropriate for this channel, include this contact phone: ${userPhone}` : "- Do NOT include any phone number in the message."}
 - Return JSON only`,
       },
       {
