@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { ScoredLead } from "@/lib/types";
-import { Loader2, Copy, Mail, X, Sparkles } from "lucide-react";
+import { Loader2, Copy, Mail, MessageCircle, X, Sparkles, ExternalLink } from "lucide-react";
 
 interface OutreachModalProps {
   lead: ScoredLead;
@@ -20,12 +20,8 @@ export function OutreachModal({
   tier = "free",
 }: OutreachModalProps) {
   const [userService, setUserService] = useState("");
-  const [channel, setChannel] = useState<"email" | "sms" | "linkedin">(
-    "email"
-  );
-  const [tone, setTone] = useState<"professional" | "friendly" | "direct">(
-    "professional"
-  );
+  const [channel, setChannel] = useState<"email" | "sms" | "linkedin" | "whatsapp">("email");
+  const [tone, setTone] = useState<"professional" | "friendly" | "direct">("professional");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [subject, setSubject] = useState<string | null>(null);
@@ -79,6 +75,10 @@ export function OutreachModal({
 
   if (!open) return null;
 
+  const hasPhone = !!lead.phone;
+  const hasEmail = !!lead.email;
+  const waNumber = lead.phone?.replace(/[^0-9]/g, "");
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
       <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-foreground/10 bg-background p-6 shadow-xl">
@@ -125,11 +125,12 @@ export function OutreachModal({
                   setChannel(e.target.value as typeof channel)
                 }
                 disabled={loading}
-                className="h-10 w-full rounded-lg border border-foreground/20 bg-transparent px-3 text-sm"
+                className="h-10 w-full rounded-lg border border-foreground/20 bg-background px-3 text-sm text-foreground"
               >
-                <option value="email">Email</option>
-                <option value="sms">SMS</option>
-                <option value="linkedin">LinkedIn</option>
+                <option value="email" className="bg-background text-foreground">Email</option>
+                <option value="sms" className="bg-background text-foreground">SMS</option>
+                <option value="linkedin" className="bg-background text-foreground">LinkedIn</option>
+                <option value="whatsapp" className="bg-background text-foreground">WhatsApp</option>
               </select>
             </div>
             <div className="space-y-2">
@@ -138,11 +139,11 @@ export function OutreachModal({
                 value={tone}
                 onChange={(e) => setTone(e.target.value as typeof tone)}
                 disabled={loading}
-                className="h-10 w-full rounded-lg border border-foreground/20 bg-transparent px-3 text-sm"
+                className="h-10 w-full rounded-lg border border-foreground/20 bg-background px-3 text-sm text-foreground"
               >
-                <option value="professional">Professional</option>
-                <option value="friendly">Friendly</option>
-                <option value="direct">Direct</option>
+                <option value="professional" className="bg-background text-foreground">Professional</option>
+                <option value="friendly" className="bg-background text-foreground">Friendly</option>
+                <option value="direct" className="bg-background text-foreground">Direct</option>
               </select>
             </div>
           </div>
@@ -195,7 +196,7 @@ export function OutreachModal({
                   </ul>
                 </div>
               )}
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
                   variant="outline"
@@ -206,14 +207,39 @@ export function OutreachModal({
                   <Copy className="h-3.5 w-3.5" />
                   {copied ? "Copied!" : "Copy"}
                 </Button>
-                {lead.email && channel === "email" && (
+
+                {hasEmail ? (
                   <a
                     href={`mailto:${lead.email}?subject=${encodeURIComponent(subject ?? "")}&body=${encodeURIComponent(body)}`}
-                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-foreground/20 px-3 text-xs hover:bg-foreground/5"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-foreground/20 px-3 text-xs text-foreground hover:bg-foreground/5"
                   >
                     <Mail className="h-3.5 w-3.5" />
-                    Open in email
+                    Email
                   </a>
+                ) : (
+                  <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-red-500/20 bg-red-500/5 px-3 text-xs text-red-500">
+                    <Mail className="h-3.5 w-3.5" />
+                    No email available
+                  </span>
+                )}
+
+                {hasPhone && waNumber ? (
+                  <a
+                    href={`https://wa.me/${waNumber}?text=${encodeURIComponent(body)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-green-500/30 bg-green-500/10 px-3 text-xs text-green-600 dark:text-green-400 hover:bg-green-500/20"
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" />
+                    WhatsApp
+                  </a>
+                ) : (
+                  <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-red-500/20 bg-red-500/5 px-3 text-xs text-red-500">
+                    <MessageCircle className="h-3.5 w-3.5" />
+                    No phone available
+                  </span>
                 )}
               </div>
             </div>

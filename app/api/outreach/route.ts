@@ -14,7 +14,7 @@ import type { ScoredLead } from "@/lib/types";
 const outreachSchema = z.object({
   lead: z.record(z.string(), z.unknown()),
   userService: z.string().min(1),
-  channel: z.enum(["email", "sms", "linkedin"]).default("email"),
+  channel: z.enum(["email", "sms", "linkedin", "whatsapp"]).default("email"),
   tone: z.enum(["professional", "friendly", "direct"]).optional(),
   language: z.string().optional(),
 });

@@ -77,7 +77,7 @@ export interface ChatMessage {
 export interface OutreachRequest {
   lead: ScoredLead;
   userService: string;
-  channel: "email" | "sms" | "linkedin";
+  channel: "email" | "sms" | "linkedin" | "whatsapp";
   tone?: "professional" | "friendly" | "direct";
   language?: string;
   includeSubject?: boolean;

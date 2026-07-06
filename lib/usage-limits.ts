@@ -29,8 +29,11 @@ export async function getUserUsage(userId: string): Promise<UsageData> {
 
 /**
  * Get the user's plan tier from Clerk publicMetadata.
+ * Returns "pro" for admin email regardless of Clerk metadata.
  */
 export async function getUserTier(): Promise<PlanTier> {
+  const email = await getCurrentUserEmail();
+  if (isAdminEmail(email)) return "pro";
   const { userId } = await auth();
   if (!userId) return "free";
   const client = await clerkClient();
@@ -47,11 +50,52 @@ export interface FullUsageStats extends UsageStats {
   maxAiMessages: number;
 }
 
+async function getCurrentUserEmail(): Promise<string | null> {
+  try {
+    const { userId } = await auth();
+    if (!userId) return null;
+    const client = await clerkClient();
+    const user = await client.users.getUser(userId);
+    return user.emailAddresses[0]?.emailAddress ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function isAdminEmail(email: string | null): boolean {
+  if (!email || !process.env.ADMIN_EMAIL) return false;
+  return email.toLowerCase() === process.env.ADMIN_EMAIL.toLowerCase();
+}
+
 /**
  * Check whether the user is allowed to perform a search.
  * Returns full stats including remaining counts and plan info.
+ * If the user's email matches ADMIN_EMAIL, they get unlimited access.
  */
 export async function checkLimits(): Promise<FullUsageStats> {
+  const email = await getCurrentUserEmail();
+  const admin = isAdminEmail(email);
+
+  if (admin) {
+    return {
+      tier: "pro",
+      exportFormats: ["csv", "pdf", "word", "json"],
+      aiFeatures: [
+        "AI chat search", "Lead filtering", "Score explanations",
+        "Personalized outreach drafts", "Bulk search jobs",
+      ],
+      searchesUsed: 0,
+      searchesRemaining: -1,
+      leadsUsed: 0,
+      leadsRemaining: -1,
+      maxSearches: -1,
+      maxLeads: -1,
+      aiMessagesUsed: 0,
+      aiMessagesRemaining: -1,
+      maxAiMessages: -1,
+    };
+  }
+
   const { userId } = await auth();
   const tier = await getUserTier();
   const { maxSearches, maxLeads, maxAiMessages, exportFormats, aiFeatures } =
