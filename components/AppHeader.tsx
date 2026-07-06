@@ -23,6 +23,9 @@ export function AppHeader() {
             <Link href="/search" className={navLinkClass}>
               Manual Search
             </Link>
+            <Link href="/my-leads" className={navLinkClass}>
+              My Leads
+            </Link>
             <Link href="/chat" className={navLinkClass}>
               AI Assistant
             </Link>

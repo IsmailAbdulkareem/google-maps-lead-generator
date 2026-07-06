@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { runLeadSearch } from "@/lib/run-search";
+import { runLeadSearch, runMultiLeadSearch } from "@/lib/run-search";
 import { checkLimits, recordUsage, capLeadsToRemaining } from "@/lib/usage-limits";
 import { isUnlimited } from "@/lib/plans";
 
@@ -11,6 +11,7 @@ const searchSchema = z.object({
   area: z.string().optional(),
   country: z.string().optional(),
   industry: z.string().optional(),
+  targetLeads: z.number().int().min(1).max(500).optional(),
 });
 
 export async function POST(request: Request) {
@@ -20,27 +21,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // ── Enforce daily usage limits ──
     const limits = await checkLimits();
 
     if (!isUnlimited(limits.maxSearches) && limits.searchesRemaining <= 0) {
       return NextResponse.json(
-        {
-          error: "Daily search limit reached. Pro is coming soon.",
-          limitType: "searches",
-          usage: limits,
-        },
+        { error: "Daily search limit reached. Pro is coming soon.", limitType: "searches", usage: limits },
         { status: 429 }
       );
     }
 
     if (!isUnlimited(limits.maxLeads) && limits.leadsRemaining <= 0) {
       return NextResponse.json(
-        {
-          error: "Daily lead limit reached. Pro is coming soon.",
-          limitType: "leads",
-          usage: limits,
-        },
+        { error: "Daily lead limit reached. Pro is coming soon.", limitType: "leads", usage: limits },
         { status: 429 }
       );
     }
@@ -55,13 +47,23 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await runLeadSearch(parsed.data);
+    const { targetLeads, ...params } = parsed.data;
+    const maxResultsPerSearch = Number(process.env.MAX_RESULTS_PER_SEARCH) || 20;
 
-    // Cap leads to remaining daily quota
+    let result: { query: string; leads: Awaited<ReturnType<typeof runLeadSearch>>["leads"] };
+
+    if (targetLeads && targetLeads > maxResultsPerSearch) {
+      const maxSearches = Math.ceil(targetLeads / maxResultsPerSearch);
+      result = await runMultiLeadSearch(params, {
+        maxSearches: Math.min(maxSearches, 10),
+      });
+    } else {
+      result = await runLeadSearch(params);
+    }
+
     const cappedLeads = capLeadsToRemaining(result.leads, limits.leadsRemaining);
     const leadCount = cappedLeads.length;
 
-    // Record usage: 1 search + however many leads were returned
     const updatedUsage = await recordUsage(userId, 1, leadCount);
 
     return NextResponse.json({
@@ -71,8 +73,7 @@ export async function POST(request: Request) {
       usage: updatedUsage,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Search failed";
+    const message = error instanceof Error ? error.message : "Search failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

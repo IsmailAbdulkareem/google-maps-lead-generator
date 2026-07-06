@@ -26,18 +26,37 @@ function isBrowser(): boolean {
 
 export function saveSearch(search: SavedSearch): void {
   if (!isBrowser()) return;
-  localStorage.setItem(searchKey(search.id), JSON.stringify(search));
+
+  const existing = findSearchByParams(search.params);
+  const id = existing ? existing.id : search.id;
+  const merged = { ...search, id };
+
+  localStorage.setItem(searchKey(id), JSON.stringify(merged));
 
   const index = getIndexIds();
-  const next = [search.id, ...index.filter((id) => id !== search.id)].slice(
-    0,
-    MAX_SAVED
-  );
+  const next = [id, ...index.filter((i) => i !== id)].slice(0, MAX_SAVED);
   localStorage.setItem(INDEX_KEY, JSON.stringify(next));
 
-  for (const id of index) {
-    if (!next.includes(id)) localStorage.removeItem(searchKey(id));
+  for (const i of index) {
+    if (!next.includes(i)) localStorage.removeItem(searchKey(i));
   }
+}
+
+export function findSearchByParams(params: SearchParams): SavedSearch | null {
+  if (!isBrowser()) return null;
+  for (const id of getIndexIds()) {
+    const s = getSearch(id);
+    if (!s) continue;
+    if (
+      s.params.category.toLowerCase() === params.category.toLowerCase() &&
+      s.params.city.toLowerCase() === params.city.toLowerCase() &&
+      (s.params.area ?? "").toLowerCase() === (params.area ?? "").toLowerCase() &&
+      (s.params.country ?? "").toLowerCase() === (params.country ?? "").toLowerCase()
+    ) {
+      return s;
+    }
+  }
+  return null;
 }
 
 export function getSearch(id: string): SavedSearch | null {

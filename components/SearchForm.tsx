@@ -10,18 +10,29 @@ import { UpgradeModal } from "@/components/UpgradeModal";
 import { WaitlistModal } from "@/components/WaitlistModal";
 import { isUnlimited } from "@/lib/plans";
 import { notifyUsageUpdated } from "@/lib/usage-events";
-import { Search } from "lucide-react";
+import { Search, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
+const LEAD_COUNT_OPTIONS = [
+  { label: "5 leads", value: 5 },
+  { label: "10 leads", value: 10 },
+  { label: "20 leads", value: 20 },
+  { label: "50 leads", value: 50 },
+  { label: "100 leads", value: 100 },
+  { label: "Max", value: 0 },
+];
 
 export function SearchForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [category, setCategory] = useState("");
   const [industry, setIndustry] = useState("");
   const [city, setCity] = useState("");
   const [area, setArea] = useState("");
   const [country, setCountry] = useState("");
+  const [targetLeads, setTargetLeads] = useState(10);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [showWaitlist, setShowWaitlist] = useState(false);
 
@@ -34,6 +45,10 @@ export function SearchForm() {
     ? !isUnlimited(stats.maxLeads) && stats.leadsRemaining <= 0
     : false;
   const limitsReached = searchesExhausted || leadsExhausted;
+
+  const effectiveLeadLimit = stats && !isUnlimited(stats.maxLeads)
+    ? Math.min(stats.leadsRemaining, targetLeads === 0 ? stats.maxLeads : targetLeads)
+    : targetLeads === 0 ? 100 : targetLeads;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -49,10 +64,14 @@ export function SearchForm() {
     };
 
     try {
+      const target = targetLeads === 0
+        ? (stats ? (isUnlimited(stats.maxLeads) ? 100 : stats.leadsRemaining) : 25)
+        : targetLeads;
+
       const res = await fetch("/api/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(params),
+        body: JSON.stringify({ ...params, targetLeads: target }),
       });
 
       const data = await res.json();
@@ -70,7 +89,7 @@ export function SearchForm() {
       notifyUsageUpdated();
 
       const id = createSearchId();
-      saveSearch({
+      const savedSearch = {
         id,
         query: data.query,
         category,
@@ -81,7 +100,30 @@ export function SearchForm() {
         leadCount: data.leads.length,
         params,
         leads: data.leads,
-      });
+      };
+
+      saveSearch(savedSearch);
+
+      setSaving(true);
+      try {
+        const saveRes = await fetch("/api/save-leads", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            searchId: id,
+            query: data.query,
+            params,
+            leads: data.leads,
+          }),
+        });
+        if (!saveRes.ok) {
+          const saveData = await saveRes.json();
+          console.warn("Supabase save failed:", saveData.error);
+        }
+      } catch (saveErr) {
+        console.warn("Supabase save error:", saveErr);
+      }
+      setSaving(false);
 
       router.push(`/leads/${id}`);
     } catch (err) {
@@ -90,6 +132,7 @@ export function SearchForm() {
       notifyUsageUpdated();
     } finally {
       setLoading(false);
+      setSaving(false);
     }
   }
 
@@ -170,13 +213,38 @@ export function SearchForm() {
           </div>
         </div>
 
+        {/* Lead count selector */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Desired leads</label>
+          <div className="flex flex-wrap gap-2">
+            {LEAD_COUNT_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setTargetLeads(opt.value)}
+                className={cn(
+                  "rounded-lg border px-3 py-1.5 text-sm transition-colors",
+                  targetLeads === opt.value
+                    ? "border-foreground/30 bg-foreground/10 font-medium text-foreground"
+                    : "border-foreground/10 text-foreground/60 hover:border-foreground/20 hover:text-foreground/80"
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-foreground/50">
+            {effectiveLeadLimit > 0
+              ? `Will attempt up to ${effectiveLeadLimit} leads`
+              : "Will use your remaining daily lead quota"}
+          </p>
+        </div>
+
         <p className="text-xs text-foreground/50">
-          Results are saved on this device only (browser storage). Export as CSV,
-          PDF, Word, or JSON anytime. Each search uses Google Places API (up to 20
-          businesses per run).
+          Results saved to your account (cloud) and this device. Export as CSV,
+          PDF, Word, or JSON anytime.
         </p>
 
-        {/* Usage stats display */}
         {stats && (
           <div className="flex items-center gap-3 text-xs">
             {tierLabel && (
@@ -217,7 +285,6 @@ export function SearchForm() {
           </div>
         )}
 
-        {/* Limit warning */}
         {limitWarning && (
           <p className="rounded-lg bg-yellow-500/10 px-3 py-2 text-sm text-yellow-700 dark:text-yellow-400">
             {limitWarning}
@@ -236,12 +303,18 @@ export function SearchForm() {
           size="lg"
           className="gap-2"
         >
-          <Search className="h-4 w-4" />
+          {loading || saving ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Search className="h-4 w-4" />
+          )}
           {loading
-            ? "Searching Google Maps…"
-            : limitsReached
-              ? "Daily limit reached"
-              : "Search Maps"}
+            ? "Searching…"
+            : saving
+              ? "Saving leads…"
+              : limitsReached
+                ? "Daily limit reached"
+                : "Search Maps"}
         </Button>
       </form>
 
